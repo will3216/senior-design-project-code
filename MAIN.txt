@@ -1,0 +1,42 @@
+// SU Unit conversion calculator.cpp : Defines the entry point for the console application.
+//
+
+#include <iostream>
+#include <cstdlib>
+#include <cstdio>
+#include "peng_robinson.h"
+#include "stream_comp.h"
+#include "search.h"
+
+
+int main(int nargs, char* args)
+{
+	Search new_search = Search();
+	StreamComp solution = StreamComp();
+	int i = 0;
+	do
+	{
+		solution = new_search.guess();
+		
+		i++;
+		cout << i << endl;
+	} while(solution.temp == 0);
+
+	cout << "Stream Results" << endl;
+	cout << "=========================================================" << endl;
+	cout << "CH4: " << solution.comp_1 << endl;
+	cout << "H2O: " << solution.comp_2 << endl;
+	cout << "CO:  " << solution.comp_3 << endl;
+	cout << "H2:  " << solution.comp_4 << endl;
+	cout << "CO2: " << solution.comp_5 << endl;
+	cout << "O2:  " << solution.comp_6 << endl;
+	cout << "N2:  " << solution.comp_7 << endl;
+	cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+	cout << "Temperature: " << solution.temp << " K" << endl;
+	cout << "Pressure:    " << solution.press << " psia" << endl;
+
+
+	system("PAUSE");
+	return 0;
+}
+

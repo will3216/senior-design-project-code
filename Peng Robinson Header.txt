@@ -1,0 +1,50 @@
+#pragma once
+#include "stream_comp.h"
+#include <vector>
+#include <cmath>
+#include <iostream>
+
+using namespace std;
+
+class PengRobinson
+{
+public:
+	PengRobinson();
+	std::vector<double> calc_kappa(void);
+	std::vector<double> calc_bi(void);
+	std::vector<double> calc_alpha(void);
+	std::vector<double> calc_aii(void);
+	std::vector<std::vector<double> > calc_aij(void);
+	double PengRobinson::calc_totflow(void);
+	std::vector<double> calc_yi(StreamComp current);
+	double calc_amix1(void);
+	double calc_amix2(int start);
+	double calc_bmix(void);
+	double calc_z(void);
+	double search(StreamComp eval);
+	double calc_dadt(void);
+	double calc_enthalpy(void);
+	double Z(StreamComp eval, double press);
+
+
+	//PR Thermo Data
+	double T;
+	double P;
+	double R;
+	std::vector<double> kappas;
+	std::vector<double> bis;
+	std::vector<double> alphas;
+	std::vector<double> aiis;
+	std::vector<std::vector<double> > aijs;
+	double tot_flow;
+	std::vector<double> yis;
+	double a_mix;
+	double b_mix;
+	double z;
+	double da_dt;
+	double enthalpy;
+	
+
+	StreamComp current;
+};
+

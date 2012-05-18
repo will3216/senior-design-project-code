@@ -1,0 +1,184 @@
+
+
+
+
+
+
+#include "search.h"
+
+
+Search::Search(void)
+{
+}
+
+StreamComp Search::guess()
+{
+	fuel = StreamComp();
+
+	fuel.comp_1 = 25000;					//CH4
+	fuel.comp_2 = rand() % 100000 + 12500;	//H2O
+	fuel.comp_3 = 0;						//CO
+	fuel.comp_4 = 0;						//H2
+	fuel.comp_5 = rand() % 25000;			//CO2
+	fuel.comp_6 = 0;						//O2
+	fuel.comp_7 = 0;						//N2
+	fuel.temp = 310.928;					//Kelvin
+	fuel.press = 515;						//psia
+
+	oxygen = StreamComp();
+
+	oxygen.comp_1 = 0;
+	oxygen.comp_2 = 0;
+	oxygen.comp_3 = 0;
+	oxygen.comp_4 = 0;
+	oxygen.comp_5 = 0;
+	oxygen.comp_6 = rand() % 25000;
+	oxygen.comp_7 = oxygen.comp_6*0.01;
+	oxygen.temp = 297.039;
+	oxygen.press = 515;
+
+	double x_1;									//Steam reformation, CH4 basis
+	double x_2 = oxygen.comp_6/fuel.comp_1*2/3; //Partial Oxidation, CH4 bases
+	double x_3;									//Shift Reaction, H2O basis
+
+	outlet = StreamComp();
+
+	outlet.temp = rand() % 1000 * 194.449/1000 + 871.111;
+
+
+	double A = fuel.comp_1;
+	double B = fuel.comp_2;
+	double C = fuel.comp_5;
+	double K = k_equil_3(outlet.temp);
+
+	x_3 = find_x_3(x_2);
+
+	if(x_3 == 0)
+	{
+		outlet.temp = 0;
+		return outlet;
+	}
+
+	x_1 = 2*x_2 - 3*x_3;
+
+	outlet.comp_1 = fuel.comp_1*(1 - x_1 - x_2);
+	outlet.comp_2 = fuel.comp_2*(1 - x_3) + fuel.comp_1*(-x_1 + 2*x_2);
+	outlet.comp_3 = fuel.comp_1*(x_1 + x_2) - fuel.comp_2*x_3;
+	outlet.comp_4 = 3*fuel.comp_1*x_1 + fuel.comp_2*x_3;
+	outlet.comp_5 = fuel.comp_5 + fuel.comp_2*x_3;
+	outlet.comp_6 = 0;
+	outlet.comp_7 = oxygen.comp_7;
+
+	// This is when the old code begins, here you need to put in a pressure check
+	// This will specify the pressure of the system using the first reactions equilibrium
+	// Do this for great rewards! BTW, don't change anything till you change the heat capacity
+	// stuff in the Peng Robinson class. I know you don't want to. Just do it.
+
+	
+	PengRobinson call = PengRobinson();
+
+	double enth_fuel;
+	double enth_ox;
+	double enth_outlet;
+	double fuel_prep_max;
+
+	enth_fuel = call.search(fuel);
+	enth_ox = call.search(oxygen);
+	enth_outlet = call.search(outlet);
+
+	StreamComp check = fuel;
+	check.temp = 537.778;
+
+	fuel_prep_max = call.search(check) - enth_fuel;
+
+	double diff;
+
+	diff = enth_outlet - enth_fuel - enth_ox;
+
+	if(diff < fuel_prep_max && diff > 0)
+	{
+			cout << "Stream Results: Fuel" << endl;
+			cout << "=========================================================" << endl;
+			cout << "CH4: " << fuel.comp_1 << endl;
+			cout << "H2O: " << fuel.comp_2 << endl;
+			cout << "CO:  " << fuel.comp_3 << endl;
+			cout << "H2:  " << fuel.comp_4 << endl;
+			cout << "CO2: " << fuel.comp_5 << endl;
+			cout << "O2:  " << fuel.comp_6 << endl;
+			cout << "N2:  " << fuel.comp_7 << endl;
+			cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+			cout << "Temperature: " << fuel.temp << " K" << endl;
+			cout << "Pressure:    " << fuel.press << " psia" << endl;
+			cout << "==========================================================" << endl;
+			cout << "==========================================================" << endl;
+			cout << "Stream Results: Oxygen" << endl;
+			cout << "=========================================================" << endl;
+			cout << "CH4: " << oxygen.comp_1 << endl;
+			cout << "H2O: " << oxygen.comp_2 << endl;
+			cout << "CO:  " << oxygen.comp_3 << endl;
+			cout << "H2:  " << oxygen.comp_4 << endl;
+			cout << "CO2: " << oxygen.comp_5 << endl;
+			cout << "O2:  " << oxygen.comp_6 << endl;
+			cout << "N2:  " << oxygen.comp_7 << endl;
+			cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+			cout << "Temperature: " << oxygen.temp << " K" << endl;
+			cout << "Pressure:    " << oxygen.press << " psia" << endl;
+			cout << "==========================================================" << endl;
+			cout << "Maximum Feed Heater duty: " << fuel_prep_max << " kmol/hr" << endl;
+			cout << "Feed Heater Duty: " << diff << " kmol/hr" << endl;
+		return outlet;
+	}
+
+	outlet.temp = 0;
+	return outlet;
+}
+
+double Search::k_equil_1(double temp) // Temperature dependence of the equilibrium K of the 
+{									  // stean reformation reaction.
+	double k;
+
+	k = exp(30.53 - 48500/temp + 2420000/temp/temp + 2490000000/temp/temp/temp);
+
+	return k;
+}
+
+double Search::k_equil_3(double temp) // Temperature dependence of the equilibrium K of the 
+{									  // water shift reaction.
+	double k;
+
+	k = exp(-2.93 + 3610/temp + 5040000/temp/temp + 1820000000/temp/temp/temp);
+
+	return k;
+}
+
+double Search::calc_totflow(void)
+{
+	double sum;
+
+	sum = outlet.comp_1 + outlet.comp_2 + outlet.comp_3 + outlet.comp_4 + outlet.comp_5
+	+ outlet.comp_6 + outlet.comp_7;
+	return sum;
+
+}
+
+double Search::find_x_3(double x_2) // Using Keq3 temperature correlation and the definition of equil.
+{
+	double x_3;
+	double x_3_check;
+
+	for(int i = 0; i <1000; i++)
+	{
+		x_3 = 0.001*i*2/3 + 0.001;
+		
+		x_3_check = (K*A*A*x_2-K*B*A*x_2 - 6*A*C*x_2 - 4*K*A*A*x_2*x_2) +
+			(12*K*A*A*x_2 - 3*K*B*A + 9*C*A - K*B - 2*K*B*A + C*B)*x_3 -
+			(9*K*A*A)*x_3*x_3;
+
+		if(x_3_check >= 0.01 && x_3_check <= 0.01)
+		{
+			return x_3;
+		}
+	}
+
+	return 0;
+}

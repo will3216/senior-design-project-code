@@ -1,0 +1,20 @@
+#pragma once
+
+class StreamComp
+{
+public:
+	StreamComp();
+	StreamComp(double c1, double c2, double c3, double c4, double c5,
+				double c6, double c7, double T, double P);
+	double comp_1;
+	double comp_2;
+	double comp_3;
+	double comp_4;
+	double comp_5;
+	double comp_6;
+	double comp_7;
+	double temp;
+	double press;
+
+};
+

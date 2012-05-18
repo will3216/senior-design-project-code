@@ -1,0 +1,421 @@
+#include "peng_robinson.h"
+
+PengRobinson::PengRobinson()
+{
+
+	double omega[7] = {0.012, 0.3449, 0.066, -0.2150, 0.228, 0.222, 0.0377};
+	double crit_press[7] = {667.029, 3198.81, 507.487, 190.435, 1070.67, 731.425, 501.831};
+	double crit_temp[7] = {190.56, 647.13, 132.92, 33.18, 304.15, 154.58, 126.20};
+	double k[7][7] = {	{1,0.5,0.030,0.0156,0.09,0,0.030},{0.5,1,0.1,0,0.12,0,0.508},
+	{0.030,0.1,1,0.0919,-0.02,0,0.04},{0.0156,0,0.0918,1,-0.1622,-0.0119,0.103},
+	{0.09,0.12,-0.02,-0.1622,1,0,0.114},{0,0,0,-0.0119,0,1,-0.0133},
+	{0.030,0.508,0.04,0.103,0.114,-0.0133,1}};
+
+	 
+}
+
+double PengRobinson::search(StreamComp eval)
+{
+	R = 1.20591; // L*psi/K/mol
+	current = eval;
+	T = eval.temp;
+
+	P = eval.press;
+
+	kappas = calc_kappa();
+
+	bis = calc_bi();
+
+	alphas = calc_alpha();
+
+	aiis = calc_aii();
+
+	aijs = calc_aij();
+
+	tot_flow = calc_totflow();
+
+	yis = calc_yi(current);
+
+	a_mix = calc_amix1();
+
+	b_mix = calc_bmix();
+
+	z = calc_z();
+	da_dt = calc_dadt();
+
+	enthalpy = calc_enthalpy();
+
+
+	return enthalpy;
+}
+
+std::vector<double> PengRobinson::calc_kappa(void) 
+{
+	std::vector<double> kappa;
+	double placeholder = 0;
+	double omega[7] = {0.012, 0.3449, 0.066, -0.2150, 0.228, 0.222, 0.0377};
+
+	for(int i = 0; i < 7; i++)
+	{
+		placeholder = 0.37464 + 1.54226*omega[i] - 0.26992*omega[i]*omega[i];
+		kappa.push_back(placeholder);
+		
+		if(i == 6)
+		{
+			return kappa;
+		}
+	}
+	std::cout <<"fail kappa";
+	return kappa;
+}
+
+std::vector<double> PengRobinson::calc_bi(void)
+{
+	double placeholder;
+	std::vector<double> bi;
+	double crit_press[7] = {667.029, 3198.81, 507.487, 190.435, 1070.67, 731.425, 501.831};
+	double crit_temp[7] = {190.56, 647.13, 132.92, 33.18, 304.15, 154.58, 126.20};
+
+	for(int i = 0; i < 7; i++)
+	{
+		placeholder = 0.07780*R*crit_temp[i]/crit_press[i];
+		bi.push_back(placeholder);
+
+		if(i == 6)
+		{
+			return bi;
+		}
+	}
+	std::cout <<"fail bi";
+	return bi;
+}
+
+std::vector<double> PengRobinson::calc_alpha(void)
+{
+	double placeholder = 0;
+	std::vector<double> alpha;
+	double crit_temp[7] = {190.56, 647.13, 132.92, 33.18, 304.15, 154.58, 126.20};
+
+	for(int i = 0; i < 7; i++)
+	{
+		placeholder = (1 + kappas[i]*(1-sqrt(T/crit_temp[i])))*(1 + kappas[i]*(1-sqrt(T/crit_temp[i])));
+		alpha.push_back(placeholder);
+
+		if(i == 6)
+		{
+			return alpha;
+		}
+	}
+	std::cout <<"fail alpha";
+	return alpha;
+}
+
+std::vector<double> PengRobinson::calc_aii(void)
+{
+	double placeholder;
+	std::vector<double> aii;
+	double crit_press[7] = {667.029, 3198.81, 507.487, 190.435, 1070.67, 731.425, 501.831};
+	double crit_temp[7] = {190.56, 647.13, 132.92, 33.18, 304.15, 154.58, 126.20};
+
+	for(int i = 0; i < 7; i++)
+	{
+		placeholder = 0.45724*R*R*crit_temp[i]*crit_temp[i]/crit_press[i]*alphas[i];
+		aii.push_back(placeholder);
+
+		if(i == 6)
+		{
+			return aii;
+		}
+	}
+	std::cout <<"fail aii";
+	return aii;
+}
+
+std::vector<std::vector<double> > PengRobinson::calc_aij(void)
+{
+	double placeholder;
+	std::vector<std::vector<double> > aij;
+	double k[7][7] = {	{1,0.5,0.030,0.0156,0.09,0,0.030},{0.5,1,0.1,0,0.12,0,0.508},
+	{0.030,0.1,1,0.0919,-0.02,0,0.04},{0.0156,0,0.0918,1,-0.1622,-0.0119,0.103},
+	{0.09,0.12,-0.02,-0.1622,1,0,0.114},{0,0,0,-0.0119,0,1,-0.0133},
+	{0.030,0.508,0.04,0.103,0.114,-0.0133,1}};
+
+	for(int i = 0; i < 7; i++)
+	{
+		std::vector<double> row;
+
+		for(int j = 0; j < 7; j++)
+		{
+			placeholder = sqrt(aiis[i]*aiis[j])*(1-k[i][j]);
+			row.push_back(placeholder);
+		}
+		aij.push_back(row);
+
+		if(i == 6)
+		{
+			return aij;
+		}
+	}
+	std::cout <<"fail aij";
+	return aij;
+}
+
+double PengRobinson::calc_totflow(void)
+{
+	double sum;
+
+	sum = current.comp_1 + current.comp_2 + current.comp_3 + current.comp_4 + current.comp_5
+	+ current.comp_6 + current.comp_7;
+	return sum;
+
+}
+
+std::vector<double> PengRobinson::calc_yi(StreamComp current)
+{
+	std::vector<double> yi;
+	double y;
+
+	y = current.comp_1/tot_flow;
+	yi.push_back(y);
+
+	y = current.comp_2/tot_flow;
+	yi.push_back(y);
+
+	y = current.comp_3/tot_flow;
+	yi.push_back(y);
+
+	y = current.comp_4/tot_flow;
+	yi.push_back(y);
+
+	y = current.comp_5/tot_flow;
+	yi.push_back(y);
+
+	y = current.comp_6/tot_flow;
+	yi.push_back(y);
+
+	y = current.comp_7/tot_flow;
+	yi.push_back(y);
+
+	return yi;
+}
+
+double PengRobinson::calc_amix1(void)
+{
+	double sum = 0;
+
+	for(int i = 0; i < 7; i++)
+	{
+		sum += calc_amix2(i);
+
+		if(i == 6)
+		{
+			return sum;
+		}
+	}
+	std::cout <<"fail amix1";
+	return sum;
+}
+
+double PengRobinson::calc_amix2(int start)
+{
+	double sum = 0;
+	
+	for(int i = 0; i < 7; i++)
+	{
+		sum += yis[start]*yis[i]*aijs[start][i];
+
+		if(i == 6)
+		{
+			return sum;
+		}
+	}
+	std::cout <<"fail amix2";
+	return sum;
+}
+
+double PengRobinson::calc_bmix(void)
+{
+	double sum = 0;
+
+	for(int i = 0; i < 7; i++)
+	{
+		sum += yis[i]*bis[i];
+
+		if(i == 6)
+		{
+			return sum;
+		}
+	}
+	std::cout <<"fail bmix";
+	return sum;
+}
+
+double PengRobinson::calc_z(void)
+{
+	bool sign_test = false;
+
+	double A = a_mix*P/R/R/T/T;
+	double B = b_mix*P/R/T;
+	double Z;
+	double value = 0;
+
+	double test = 5*5*5 - (1 - B)*5*5 + (A - 3*B*B - 2*B)*5 - (A*B - B*B - B*B*B);
+
+	if(test >= 0)
+	{
+		sign_test = true;
+	}
+	else{sign_test = false;}
+
+	bool compare = sign_test;
+
+	for(int i = 0; i < 100000; i++)
+	{
+		Z = 5 - (double)i*5/100000;
+		value = Z*Z*Z - (1 - B)*Z*Z + (A - 3*B*B - 2*B)*Z - (A*B - B*B - B*B*B);
+
+		if(value > -0.5 && value < 0.5)
+		{
+			return Z;
+		}
+
+		if(value >= 0)
+		{
+			compare = true;
+		}
+		else{compare = false;}
+
+		if(compare != sign_test)
+		{
+			++i;
+
+			for(int j = 0; j < 10000; j++)
+			{
+				Z = 5 - (double)i*5/100000 - (double)j*5/1000000000;
+				value = Z*Z*Z - (1 - B)*Z*Z + (A - 3*B*B - 2*B)*Z - (A*B - B*B - B*B*B);
+
+				if(value > -0.5 && value < 0.5)
+				{
+					return Z;
+				}
+			}
+		}
+	}
+	cout << "Failed at Z" << endl;
+	return 0;
+}
+
+double PengRobinson::calc_dadt(void)
+{
+	double sum = 0;
+	double crit_press[7] = {667.029, 3198.81, 507.487, 190.435, 1070.67, 731.425, 501.831};
+	double crit_temp[7] = {190.56, 647.13, 132.92, 33.18, 304.15, 154.58, 126.20};
+	double k[7][7] = {	{1,0.5,0.030,0.0156,0.09,0,0.030},{0.5,1,0.1,0,0.12,0,0.508},
+	{0.030,0.1,1,0.0919,-0.02,0,0.04},{0.0156,0,0.0918,1,-0.1622,-0.0119,0.103},
+	{0.09,0.12,-0.02,-0.1622,1,0,0.114},{0,0,0,-0.0119,0,1,-0.0133},
+	{0.030,0.508,0.04,0.103,0.114,-0.0133,1}};
+
+	for(int i = 0; i < 7; i++)
+	{
+		for(int j = 0; j < 7; j++)
+		{
+			sum += yis[i]*yis[j]*(1 - k[i][j])*(0.45724*crit_temp[i]*crit_temp[j]*R*R)*(0.45724*crit_temp[i]*crit_temp[j]*R*R)
+				/crit_press[i]/crit_press[j]/sqrt(aiis[i]*aiis[j])*(((kappas[i] + 1)*(kappas[i] +1) -
+				2*kappas[i]*(kappas[i]+1)*sqrt(T/crit_temp[i]) + kappas[i]*kappas[i]*T/crit_temp[i])*(kappas[j]*
+				kappas[j]/crit_temp[j]-kappas[j]*(kappas[j]+1)/crit_temp[j]/sqrt(T/crit_temp[j])) + 
+				((kappas[j] + 1)*(kappas[j] +1) - 2*kappas[j]*(kappas[j]+1)*sqrt(T/crit_temp[j]) + kappas[j]*
+				kappas[j]*T/crit_temp[j])*(kappas[i]*kappas[i]/crit_temp[i]-kappas[i]*(kappas[i]+1)/
+				crit_temp[i]/sqrt(T/crit_temp[i])))/2;
+		
+			if(i == 6 && j == 6)
+			{
+				return sum;
+			}
+		}
+	}
+	cout << "odd dadt behaviour";
+	return sum;
+}
+
+double PengRobinson::calc_enthalpy(void)
+{
+	double departure_enthalpy = 0;
+	double ideal_gas_enthalpy = 0;
+	double B;
+	B= b_mix*P/R/T;
+	enthalpy = 0;
+
+	//returns kilojoules per hr
+
+	departure_enthalpy = 6.894729*(R*T*(z - 1) + (T*da_dt - a_mix)/(2*sqrt((double)2)*b_mix)*log((z + (1 + sqrt((double)2))*B)/(z + (1 - sqrt((double)2))*B)))*tot_flow;
+
+	if(T >= 500)
+	{
+		ideal_gas_enthalpy = (((19.91*T + .001994*T*T/2 - 4967000/T) - (19.91*3000 + .001994*3000*3000/2 - 4967000/3000) + 42952)*4.18400 - 74600)*current.comp_1;
+
+		ideal_gas_enthalpy += (((9.187*T + .001542*T*T/2 - 692500/T) - (9.187*3000 + .001542*3000*3000/2 - 692500/3000) + 30272)*4.18400 - 241826)*current.comp_2;
+
+		ideal_gas_enthalpy += (((8.138*T + .0003024*T*T/2 - 441500/T) - (8.138*3000 + .0003024*3000*3000/2 - 441500/3000) + 22375)*4.18400 - 110500)*current.comp_3;
+
+		ideal_gas_enthalpy += ((6.429*T + .0008649*T*T/2 - 25060/T) - (6.429*3000 + .0008649*3000*3000/2 - 25060/3000) + 21234)*4.18400*current.comp_4;
+
+		ideal_gas_enthalpy += (((13.63*T + .0005045*T*T/2 - 1046000/T) - (13.63*3000 + .0005045*3000*3000/2 - 1046000/3000) + 36560)*4.18400 - 393500)*current.comp_5;
+
+		ideal_gas_enthalpy += ((8.129*T + .0004854*T*T/2 - 275700/T) - (8.129*3000 + .0004854*3000*3000/2 - 275700/3000) + 23444)*4.18400*current.comp_6;
+	
+		ideal_gas_enthalpy += ((7.971*T + .0003495*T*T/2 - 428300/T) - (7.971*3000 + .0003495*3000*3000/2 - 428300/3000) + 22182)*4.18400*current.comp_7;	
+	}
+	else
+	{
+		ideal_gas_enthalpy = ((26.142*T + 0.020826*T*T/2 + .000037674*T*T*T/3) - (26.142*298.15 + 0.020826*298.15*298.15/2 + .000037674*298.15*298.15*298.15/3) - 74600)*current.comp_1;
+		
+		ideal_gas_enthalpy += ((32.9839*T - 0.001516*T*T/2 + .0000120164*T*T*T/3) - (32.9839*298.15 - 0.001516*298.15*298.15/2 + .0000120164*298.15*298.15*298.15/3) - 241826)*current.comp_2;
+		
+		ideal_gas_enthalpy += ((29.9117*T - 0.006216*T*T/2 + .0000117155*T*T*T/3) - (29.9117*298.15 - 0.006216*298.15*298.15/2 + .0000117155*298.15*298.15*298.15/3) - 110500)*current.comp_3;
+
+		ideal_gas_enthalpy += ((26.2749*T + 0.011854*T*T/2 - .0000113545*T*T*T/3) - (26.2749*298.15 + 0.011854*298.15*298.15/2 - .0000113545*298.15*298.15*298.15/3))*current.comp_4;
+
+		ideal_gas_enthalpy += ((20.3654*T + 0.067227*T*T/2 - .0000372275*T*T*T/3) - (20.3654*298.15 + 0.067227*298.15*298.15/2 - .0000372275*298.15*298.15*298.15/3) - 393500)*current.comp_5;
+
+		ideal_gas_enthalpy += ((28.3071*T + 0.0009122238*T*T/2 + .0000089877*T*T*T/3) - (28.3071*298.15 + 0.0009122238*298.15*298.15/2 + .0000089877*298.15*298.15*298.15/3))*current.comp_6;
+	
+		ideal_gas_enthalpy += ((30.3846*T + -.007936*T*T/2 + .000012436*T*T*T/3) - (30.3846*298.15 + -.007936*298.15*298.15/2 + .000012436*298.15*298.15*298.15/3))*current.comp_7;	
+	}
+
+	enthalpy = ideal_gas_enthalpy + departure_enthalpy;
+
+	return enthalpy;
+}
+
+double PengRobinson::Z(StreamComp eval, double press)
+{
+	R = 1.20591; // L*psi/K/mol
+
+	current = eval;
+
+	T = eval.temp;
+
+	P = press;
+
+	kappas = calc_kappa();
+
+	bis = calc_bi();
+
+	alphas = calc_alpha();
+
+	aiis = calc_aii();
+
+	aijs = calc_aij();
+
+	tot_flow = calc_totflow();
+
+	yis = calc_yi(current);
+
+	a_mix = calc_amix1();
+
+	b_mix = calc_bmix();
+
+	z = calc_z();
+
+	return z;
+}

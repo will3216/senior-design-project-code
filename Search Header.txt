@@ -1,0 +1,31 @@
+#pragma once
+#include "peng_robinson.h"
+#include "stream_comp.h"
+#include <ctime>
+
+class Search
+{
+public:
+	Search(void);
+	StreamComp guess();
+	double k_equil_1(double temp);
+	double k_equil_3(double temp);
+	double temp_check(double temp);
+	double temp_check_2(void);
+	double calc_totflow(void);
+	double find_x_3(double x_2);
+
+	StreamComp fuel;
+	StreamComp oxygen;
+	StreamComp outlet;
+	double A;
+	double B;
+	double C;
+	double K;
+};
+
+
+
+
+
+
